@@ -1,0 +1,142 @@
+/examples/sound_driver.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO E CENARIO DE HARDWARE }
+ * Simula a interface com o hardware de audio mais simples.
+ * ----------------------------------------------------
+ */
+
+/* 1. DIRETIVA DE CENSURA */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* 2. REGISTRADOR DE HARDWARE DE SAÍDA DE ÁUDIO (Simulado MMIO) */
+risc_AUDIO_REG_ADDR = 0xFF0000; /* Endereço onde o hardware de audio "vive" */
+risc_PIN_STATE = 0;             /* Estado atual do pino (0 = OFF, 1 = ON) */
+
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: DECLARAÇÃO DE VARIÁVEIS DE ONDA E TEMPORIZAÇÃO }
+ * Frequência alvo: 440 Hz (Lá Central)
+ * Para 440Hz, o período é 2.27 ms. O semi-período é 1.13 ms.
+ * Vamos simular um atraso de 1.13 ms com 100000 ciclos de ADD/SUB.
+ * ----------------------------------------------------
+ */
+
+risc_DELAY_CYCLES = 100000; /* Ciclos de atraso para o semi-período (1/2 onda) */
+risc_BEEP_DURATION = 200;   /* Quantidade de semi-períodos a tocar (dura o beep) */
+
+risc_LOOP_COUNT = 0;        /* Contador de semi-períodos */
+risc_DELAY_COUNT = 0;       /* Contador do loop interno de atraso */
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 2: FUNÇÃO DE ATRASO (DELAY) }
+ * Simula o tempo preciso que a CPU deve esperar.
+ * ----------------------------------------------------
+ */
+
+DELAY_ROUTINE:
+    LOAD R1, risc_DELAY_CYCLES; /* R1 = 100000 */
+    STORE R1, risc_DELAY_COUNT;
+
+    DELAY_LOOP:
+        LOAD R2, risc_DELAY_COUNT;
+        
+        /* Checagem de Fim: Se R2 for 0, saia do loop */
+        JUMP_IF_ZERO R2, DELAY_RETURN;
+        
+        /* Decremento: R2 = R2 - 1 */
+        SET R3, 1;
+        SUB R2, R3; 
+        
+        STORE R2, risc_DELAY_COUNT;
+        
+        JUMP DELAY_LOOP;
+
+DELAY_RETURN:
+    JUMP_RETURN; /* Retorno simulado de sub-rotina (via R8) */
+
+/* * ----------------------------------------------------
+ * { ETAPA 3: PONTO DE EXECUÇÃO PRINCIPAL (MAIN) }
+ * ----------------------------------------------------
+ */
+
+_start_sound_beep:
+    /* A. Zera o contador de loop */
+    SET R0, 0;
+    STORE R0, risc_LOOP_COUNT; 
+    
+    /* B. Configura o endereço de retorno para a sub-rotina DELAY (R8) */
+    SET R8, DELAY_RETURN_POINT; 
+    
+    JUMP BEEP_LOOP_MAIN;
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 4: LOOP PRINCIPAL DE GERAÇÃO DE ONDA QUADRADA }
+ * ----------------------------------------------------
+ */
+
+BEEP_LOOP_MAIN:
+    LOAD R1, risc_LOOP_COUNT;
+    LOAD R2, risc_BEEP_DURATION;
+    
+    /* Checagem de Fim: Se R1 >= DURACAO, termine o beep */
+    JUMP_IF_GE R1, R2, BEEP_END;
+    
+    /* A. LEITURA E INVERSÃO DE ESTADO */
+    
+    LOAD R3, risc_PIN_STATE;
+    
+    /* Inversão: Se R3 for 0, salta para LIGAR (R3=1) */
+    JUMP_IF_ZERO R3, BEEP_LIGAR;
+    
+    /* Senão, desliga (R3=0) */
+    SET R3, 0;
+    JUMP BEEP_APLICAR_ESTADO;
+    
+BEEP_LIGAR:
+    SET R3, 1;
+    /* (Caminho continua em BEEP_APLICAR_ESTADO) */
+    
+BEEP_APLICAR_ESTADO:
+    /* B. APLICAÇÃO AO REGISTRADOR DE HARDWARE */
+    
+    SET R4, risc_AUDIO_REG_ADDR; /* Endereco: 0xFF0000 */
+    STORE R3, [R4]; /* [0xFF0000] = Novo Estado (1 ou 0) */
+    STORE R3, risc_PIN_STATE; /* Atualiza o estado da variável */
+
+    /* C. CHAMA O ATRASO (Simula o semi-período da onda) */
+    
+    JUMP DELAY_ROUTINE;
+    
+    /* D. PONTO DE RETORNO DO DELAY */
+    DELAY_RETURN_POINT: 
+
+    /* E. INCREMENTA O CONTADOR DE LOOP (Semi-períodos) */
+    
+    LOAD R1, risc_LOOP_COUNT;
+    SET R5, 1;
+    ADD R1, R5;
+    STORE R1, risc_LOOP_COUNT;
+    
+    /* F. Repete o Loop */
+    JUMP BEEP_LOOP_MAIN;
+
+/* * ----------------------------------------------------
+ * { ETAPA 5: FIM E LIMPEZA DO HARDWARE }
+ * ----------------------------------------------------
+ */
+
+BEEP_END:
+    /* Garante que o pino de audio esteja desligado */
+    SET R3, 0;
+    SET R4, risc_AUDIO_REG_ADDR;
+    STORE R3, [R4]; 
+
+    /* Retorna: O comando mais complexo para uma coisa simples */
+    SET R0, 0; 
+    RET_DIREÇÃO:
+        RET("""RETURN"""); 
+        HALT;
