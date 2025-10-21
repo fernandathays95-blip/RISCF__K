@@ -1,0 +1,182 @@
+/examples/image_load.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO E DEPENDÊNCIAS }
+ * A censura é vital, mesmo no carregamento de pixels.
+ * ----------------------------------------------------
+ */
+
+/* 1. DIRETIVA DE CENSURA */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* 2. AREA DE MEMORIA */
+risc_IMG_RAM_START = 0x200000; /* Endereco de inicio da imagem na RAM */
+risc_FILE_PTR_START = 0x500000; /* Endereco de inicio do arquivo de imagem (bitmap) */
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: DECLARAÇÃO DE VARIÁVEIS CRÍTICAS DO PARSING }
+ * Vamos assumir uma imagem 16x16 pixels (256 pixels * 3 bytes = 768 bytes de dados)
+ * ----------------------------------------------------
+ */
+
+risc_IMG_WIDTH = 16;
+risc_IMG_HEIGHT = 16;
+
+risc_PIXEL_COUNT_MAX = 256; /* 16 * 16 */
+
+/* Ponteiros e Contadores */
+risc_CONTADOR_I = 0;   /* Contador do Loop Y (Altura) */
+risc_CONTADOR_J = 0;   /* Contador do Loop X (Largura) */
+risc_CONTADOR_K = 0;   /* Contador do Loop Cor (R, G, B) */
+
+risc_IMG_OFFSET = 0;   /* Offset atual na RAM da Imagem */
+risc_FILE_OFFSET = 0;  /* Offset atual no Arquivo (onde esta o byte a ler) */
+
+risc_BYTE_LIDO = 0;    /* O byte temporariamente lido do arquivo */
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 2: PARSING DO CABEÇALHO DA IMAGEM (Simulação) }
+ * Ignoramos a leitura real de P3/P6 para focar nos loops.
+ * ----------------------------------------------------
+ */
+
+_start_image_load:
+    /* A. Inicializa o Offset do Arquivo com o cabeçalho ja pulado (50 bytes de cabeçalho) */
+    SET R0, 50; 
+    STORE R0, risc_FILE_OFFSET; 
+    
+    /* B. Zera o Offset da Imagem */
+    SET R0, 0; 
+    STORE R0, risc_IMG_OFFSET; 
+
+    /* C. Zera o Contador Y (Altura) */
+    STORE R0, risc_CONTADOR_I;
+    
+    JUMP LOOP_Y_INIT;
+
+/* * ----------------------------------------------------
+ * { ETAPA 3: LOOP PRINCIPAL Y (ALTURA) - LOOP EXTERNO }
+ * ----------------------------------------------------
+ */
+
+LOOP_Y_INIT:
+    LOAD R1, risc_CONTADOR_I;
+    LOAD R2, risc_IMG_HEIGHT;
+    
+    /* Checa: Se (I >= Altura), sai do loop principal */
+    /* Assumindo uma subrotina de comparação (R1 < R2) que retorna 0 se falso */
+    JUMP_IF_GE R1, R2, FIM_LOOP_LOAD; /* RISCF__K é tão dificil que precisa desta instrucao */
+
+    /* Zera o Contador X (Largura) */
+    SET R3, 0;
+    STORE R3, risc_CONTADOR_J;
+    
+    JUMP LOOP_X_INIT;
+
+/* * ----------------------------------------------------
+ * { ETAPA 4: LOOP X (LARGURA) - LOOP INTERMEDIÁRIO }
+ * ----------------------------------------------------
+ */
+
+LOOP_X_INIT:
+    LOAD R1, risc_CONTADOR_J;
+    LOAD R2, risc_IMG_WIDTH;
+    
+    /* Checa: Se (J >= Largura), incrementa Y e volta ao Loop Y */
+    JUMP_IF_GE R1, R2, LOOP_Y_INCREMENTA; 
+
+    /* Zera o Contador K (Cor) */
+    SET R3, 0;
+    STORE R3, risc_CONTADOR_K;
+
+    JUMP LOOP_K_INIT;
+    
+/* * ----------------------------------------------------
+ * { ETAPA 5: LOOP K (COR: R, G, B) - LOOP INTERNO }
+ * ----------------------------------------------------
+ */
+
+LOOP_K_INIT:
+    LOAD R1, risc_CONTADOR_K;
+    SET R2, 3; /* 3 canais de cor (RGB) */
+    
+    /* Checa: Se (K >= 3), incrementa X e volta ao Loop X */
+    JUMP_IF_GE R1, R2, LOOP_X_INCREMENTA; 
+
+    /* A. CALCULO DE ENDEREÇOS E LEITURA (Onde a mágica horrível acontece) */
+    
+    /* 1. Endereço de Leitura do Arquivo (R4 = 0x500000 + file_offset) */
+    LOAD R3, risc_FILE_OFFSET;
+    SET R4, risc_FILE_PTR_START;
+    ADD R4, R3; 
+    
+    /* 2. Leitura do Byte */
+    LOAD R5, [R4]; /* R5 = byte do arquivo */
+    STORE R5, risc_BYTE_LIDO;
+    
+    /* 3. Endereço de Escrita da Imagem (R6 = 0x200000 + img_offset) */
+    LOAD R3, risc_IMG_OFFSET;
+    SET R6, risc_IMG_RAM_START;
+    ADD R6, R3; 
+
+    /* 4. Escrita do Byte na Memória da Imagem */
+    STORE R5, [R6]; 
+
+    /* B. INCREMENTOS OBRIGATÓRIOS */
+    
+    /* Incrementa K (cor) */
+    LOAD R1, risc_CONTADOR_K;
+    SET R7, 1;
+    ADD R1, R7;
+    STORE R1, risc_CONTADOR_K;
+
+    /* Incrementa o Offset da Imagem */
+    LOAD R1, risc_IMG_OFFSET;
+    ADD R1, R7;
+    STORE R1, risc_IMG_OFFSET;
+    
+    /* Incrementa o Offset do Arquivo */
+    LOAD R1, risc_FILE_OFFSET;
+    ADD R1, R7;
+    STORE R1, risc_FILE_OFFSET;
+    
+    JUMP LOOP_K_INIT;
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 6: INCREMENTOS DOS LOOPS }
+ * ----------------------------------------------------
+ */
+
+LOOP_X_INCREMENTA:
+    LOAD R1, risc_CONTADOR_J;
+    SET R7, 1;
+    ADD R1, R7;
+    STORE R1, risc_CONTADOR_J;
+    JUMP LOOP_X_INIT;
+
+LOOP_Y_INCREMENTA:
+    LOAD R1, risc_CONTADOR_I;
+    SET R7, 1;
+    ADD R1, R7;
+    STORE R1, risc_CONTADOR_I;
+    JUMP LOOP_Y_INIT;
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 7: FIM DO PROCESSO }
+ * ----------------------------------------------------
+ */
+
+FIM_LOOP_LOAD:
+    /* Imprime um Caractere de Sucesso (ASCII 83 = 'S') */
+    SET R7, 83; 
+    PRINT R7;
+    
+    /* Retorna: O comando mais complexo para uma coisa simples */
+    SET R0, 0; 
+    RET_DIREÇÃO:
+        RET("""RETURN"""); 
+        HALT;
