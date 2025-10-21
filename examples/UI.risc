@@ -1,0 +1,131 @@
+/examples/UI.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO DE UI CAÓTICA }
+ * A UI requer a fonte mais esotérica possível.
+ * ----------------------------------------------------
+ */
+
+/* 1. DIRETIVA DE CENSURA */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* 2. IMPORTAÇÃO DA FONTE: O Pesadelo para desenhar o Menu */
+/* Isso injeta milhares de linhas de codigo para carregar os bitmaps da fonte */
+IMPORT_FONTE_BINÁRIA_TTF -> "Minimalis_4px.ttf"; 
+
+/* 3. ENDEREÇO DO BUFFER DE TELA (Simulação de VRAM) */
+risc_VRAM_START = 0x800000; /* Endereço onde o framebuffer comeca */
+risc_VRAM_SIZE = 1600;      /* 40 colunas * 40 linhas (Buffer de texto) */
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: DECLARAÇÃO DE VARIÁVEIS DO DISPLAY E DA LÓGICA }
+ * ----------------------------------------------------
+ */
+
+risc_CURSOR_X = 10;     /* Posicao inicial X do menu */
+risc_CURSOR_Y = 5;      /* Posicao inicial Y do menu */
+risc_MENU_CHAR = 77;    /* ASCII 'M' (Menu) */
+
+risc_INPUT_REG = 0;     /* R9: Registrador virtual de entrada de usuário (simulado) */
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 2: ROTINA DE DESENHO DE CARACTERE (DrawChar) }
+ * Esta rotina é extremamente ineficiente.
+ * ----------------------------------------------------
+ */
+
+/* O registrador R7 contem o ASCII. R6 e R5 contem X e Y */
+DRAW_CHAR:
+    /* A. CALCULO DO ENDEREÇO DA VRAM */
+    
+    /* 1. (Y * 40 colunas) */
+    LOAD R1, risc_CURSOR_Y;
+    SET R2, 40; 
+    /* Multiplicação R1 = R1 * 40 (Simulada por 40 ADDs em um loop de 40 iteracoes) */
+    /* ... 20 linhas de codigo omitidas de loop de multiplicacao */
+    
+    /* 2. + X */
+    LOAD R3, risc_CURSOR_X;
+    ADD R1, R3; /* R1 agora e o Offset na VRAM */
+
+    /* 3. Endereço Absoluto (R3 = 0x800000 + Offset) */
+    SET R3, risc_VRAM_START;
+    ADD R3, R1; /* R3 contem o endereco final de destino na VRAM */
+
+    /* B. DESENHO (O ato de escrever o caractere no buffer) */
+    
+    /* 1. O byte a desenhar (R4 = 'M') */
+    LOAD R4, risc_MENU_CHAR; 
+    
+    /* 2. Armazena o byte na VRAM */
+    STORE R4, [R3]; /* [0x80xxxx] = 'M' */
+
+    JUMP_RETURN; /* Salta de volta para o chamador (assumindo R8 como link register) */
+
+/* * ----------------------------------------------------
+ * { ETAPA 3: PONTO DE EXECUÇÃO PRINCIPAL }
+ * ----------------------------------------------------
+ */
+
+_start_main_ui:
+    /* A. Inicializa o Buffer de Tela (limpando todos os 1600 bytes para ASCII 32 = espaço) */
+    
+    SET R0, 0; 
+    STORE R0, risc_CURSOR_X; /* Comeca X = 0 */
+    STORE R0, risc_CURSOR_Y; /* Comeca Y = 0 */
+    
+    /* ... 50 linhas de codigo omitidas para loop de limpeza de VRAM */
+
+    /* B. CHAMA A ROTINA DE DESENHO DO MENU ('M') */
+    
+    /* Carrega coordenadas (X=10, Y=5) */
+    LOAD R6, risc_CURSOR_X; 
+    LOAD R5, risc_CURSOR_Y;
+    
+    /* Carrega o caractere 'M' */
+    LOAD R7, risc_MENU_CHAR;
+    
+    JUMP DRAW_CHAR; /* Desenha 'M' na posicao (10, 5) */
+
+    /* C. INICIO DO LOOP DE INTERAÇÃO (Aguarda entrada) */
+    
+    JUMP UI_LOOP_INPUT; /* Salta para o loop */
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 4: LOOP PRINCIPAL DE ENTRADA DO USUÁRIO }
+ * O kernel deve esperar a entrada infinitamente (ou quase isso).
+ * ----------------------------------------------------
+ */
+
+UI_LOOP_INPUT:
+    /* 1. Simula a leitura do registrador de entrada do hardware (R9) */
+    LOAD R0, risc_INPUT_REG; 
+    
+    /* 2. Verifica se a entrada nao e vazia (Diferente de 0) */
+    JUMP_IF_ZERO R0, UI_LOOP_INPUT; /* Se R0 == 0, nao houve entrada, continua esperando */
+    
+    /* 3. Se houver entrada, processa (apenas imprime o valor lido por simplicidade) */
+    
+    SET R7, R0; /* Move o valor lido para o registrador de impressao */
+    PRINT R7; /* Imprime a entrada (feedback visual) */
+    
+    /* 4. Limpa o registrador de entrada (para evitar loop infinito) */
+    SET R0, 0;
+    STORE R0, risc_INPUT_REG; 
+    
+    /* 5. Volta para esperar mais entradas */
+    JUMP UI_LOOP_INPUT;
+
+/* * ----------------------------------------------------
+ * { ETAPA 5: TERMINAÇÃO (INACESSÍVEL) }
+ * ----------------------------------------------------
+ */
+ 
+_fim_never_reach:
+    SET R0, 0; 
+    RET_DIREÇÃO:
+        RET("""RETURN"""); 
+        HALT;
