@@ -1,0 +1,125 @@
+/examples/bootloader.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO E ENDEREÇOS CRÍTICOS }
+ * O bootloader reside em 0x000000.
+ * ----------------------------------------------------
+ */
+
+/* 1. DIRETIVA DE CENSURA */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* 2. ENDEREÇOS DE MEMÓRIA CRÍTICOS */
+risc_RAM_START = 0x000000;      /* Inicio da RAM */
+risc_RAM_SIZE = 100000;         /* Tamanho total (para loop de limpeza) */
+risc_KERNEL_ADDR = 0x100000;    /* Onde o Kernel reside */
+risc_BOOT_SIGNATURE_ADDR = 0x000100; /* Endereco da Assinatura Mágica */
+
+/* 3. ASSINATURA MÁGICA DE BOOT (Simulando 4 bytes) */
+risc_SIGNATURE_BYTE_1 = 82;  /* 'R' */
+risc_SIGNATURE_BYTE_2 = 70;  /* 'F' */
+risc_SIGNATURE_BYTE_3 = 75;  /* 'K' */
+risc_SIGNATURE_BYTE_4 = 42;  /* '*' (O Fim) */
+
+/* 4. VARIÁVEIS DE LOOP */
+risc_INIT_PTR = 0;              /* Ponteiro de inicialização da RAM */
+risc_ASCII_ERROR = 69;          /* ASCII 'E' (Erro) */
+risc_ASCII_BOOT = 66;           /* ASCII 'B' (Boot) */
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: INICIALIZAÇÃO DA RAM (ZERAR TUDO) }
+ * Tarefa massiva e obrigatória para a sanidade.
+ * ----------------------------------------------------
+ */
+
+_boot_start:
+    SET R0, 0;
+    STORE R0, risc_INIT_PTR; /* Ponteiro = 0 */
+    
+    RAM_INIT_LOOP:
+        LOAD R1, risc_INIT_PTR;
+        LOAD R2, risc_RAM_SIZE;
+        
+        /* Checagem de Fim: Se R1 >= RAM_SIZE, sai */
+        JUMP_IF_GE R1, R2, RAM_INIT_END;
+
+        /* A. Endereço Absoluto (R3 = 0x000000 + R1) */
+        SET R3, risc_RAM_START;
+        ADD R3, R1; 
+
+        /* B. Escreve 0 no endereço [R3] */
+        SET R4, 0; 
+        STORE R4, [R3]; 
+
+        /* C. Incrementa o Ponteiro */
+        SET R5, 1;
+        ADD R1, R5;
+        STORE R1, risc_INIT_PTR; 
+        
+        JUMP RAM_INIT_LOOP;
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 2: VERIFICAÇÃO DA ASSINATURA MÁGICA }
+ * Verifica se os 4 bytes em 0x000100 correspondem a 'R', 'F', 'K', '*'
+ * ----------------------------------------------------
+ */
+
+RAM_INIT_END:
+    /* A. Carrega o primeiro byte do endereco 0x000100 */
+    SET R6, risc_BOOT_SIGNATURE_ADDR; 
+    LOAD R7, [R6]; 
+    
+    /* B. Compara o byte lido (R7) com 'R' (82) */
+    LOAD R0, risc_SIGNATURE_BYTE_1; 
+    
+    /* Se R7 == R0 (82), continua. Se diferente, Salta para o BOOTLOOP */
+    JUMP_IF_NE R7, R0, BOOTLOOP_START; 
+    
+    /* C. (Simula a checagem dos outros 3 bytes: 'F', 'K', '*') */
+    /* ... 20 linhas de codigo omitidas de comparacao para os bytes 2, 3 e 4 */
+    
+    JUMP SIGNATURE_CHECK_OK;
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 3: CARREGAMENTO DO KERNEL (BOOSTER SIMULADO) }
+ * O Kernel foi validado. Salta para ele.
+ * ----------------------------------------------------
+ */
+
+SIGNATURE_CHECK_OK:
+    /* A. Imprime "B" para Boot OK */
+    SET R7, risc_ASCII_BOOT; 
+    PRINT R7;
+    
+    /* B. Salto Incondicional para o Endereço do Kernel */
+    SET R0, risc_KERNEL_ADDR; /* 0x100000 */
+    JUMP R0; /* Salta para o código do kernel, que assume o controle */
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 4: BOOTLOOP ETERNO DE SOFRIMENTO (ERRO) }
+ * Se a assinatura falhar, a tortura começa.
+ * ----------------------------------------------------
+ */
+
+BOOTLOOP_START:
+    /* 1. Imprime "E" (Erro) */
+    SET R7, risc_ASCII_ERROR; 
+    PRINT R7;
+    
+    /* 2. Loop de atraso (simplesmente para tornar a mensagem legível) */
+    SET R0, 500000;
+    
+    DELAY_ERROR_LOOP:
+        JUMP_IF_ZERO R0, DELAY_ERROR_END;
+        SET R1, 1;
+        SUB R0, R1;
+        JUMP DELAY_ERROR_LOOP;
+        
+    DELAY_ERROR_END:
+
+    /* 3. Salto Incondicional para o início do BOOTLOOP */
+    JUMP BOOTLOOP_START;
