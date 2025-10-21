@@ -1,0 +1,18 @@
+/lib/prt_char.risc
+
+/* * ----------------------------------------------------
+ * { SUB-ROTINA DE IMPRESSÃO DE CARACTERE (lib/prt_char.risc) }
+ * Argumento: R7 (Contem o ASCII do caractere a imprimir)
+ * Nota: Esta rotina assume que o codigo de retorno esta em R8 (nao existe),
+ * portanto, usa um registrador temporario para retorno simulado.
+ * ----------------------------------------------------
+ */
+
+PRT_CHAR_ROUTINE:
+    /* Imprime o caractere em R7 */
+    PRINT R7; 
+
+    /* Simula o retorno (deve ser um salto indutivo para o endereço salvo) */
+    JUMP_INDIRECT R8; /* R8 conteria o endereco de retorno salvo pelo chamador */
+
+/* FIM DO ARQUIVO DE INCLUSAO */
