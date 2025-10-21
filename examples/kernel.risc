@@ -1,0 +1,117 @@
+/examples/kernel.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO E CARREGAMENTO DE ASSETS }
+ * O kernel deve ser auto-suficiente.
+ * ----------------------------------------------------
+ */
+
+/* 1. DIRETIVA DE CENSURA: Nome do projeto */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* 2. CARREGAMENTO DA FONTE: O inferno de 9999+ linhas */
+/* Simula a leitura, validacao e rasterizacao do mapa de pixels da fonte */
+IMPORT_FONTE_BINÁRIA_TTF -> "Sys_Default_8x8.ttf"; 
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: DECLARAÇÃO DE VARIÁVEIS CRÍTICAS DO SISTEMA }
+ * Memória alocada para o Kernel Core.
+ * ----------------------------------------------------
+ */
+
+risc_STATUS_CODE = 0;   /* R0: Código de sucesso/erro (0 = OK) */
+risc_CLOCK_CYCLES = 0;  /* Contador de ciclos da CPU */
+risc_MSG_ASCII_K = 75;  /* ASCII 'K' (para 'Kernel Loaded') */
+risc_MSG_ASCII_L = 76;  /* ASCII 'L' (para 'Loop') */
+risc_KERN_PTR_INIT = 0x100000; /* Ponto de inicialização do Kernel na RAM */
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 2: FUNÇÃO DE SAÍDA DE E/S (Output) }
+ * Sub-rotina para imprimir um caractere e retornar.
+ * ----------------------------------------------------
+ */
+ 
+/* R7 sera usado como registrador de argumento para o caractere */
+PRT_CHAR:
+    PRINT R7; 
+    JUMP_RETURN; /* Assumindo um pseudo-instrucao de retorno de subrotina */
+
+/* * ----------------------------------------------------
+ * { ETAPA 3: PONTO DE INICIALIZAÇÃO DO KERNEL (MAIN) }
+ * ----------------------------------------------------
+ */
+
+_start_kernel_init:
+    /* A. Configuração inicial do ponteiro */
+    SET R0, 0; /* Limpa o status */
+    SET R1, risc_KERN_PTR_INIT;
+    
+    /* B. Simula a escrita de uma flag na RAM (BOOT_OK) */
+    SET R2, 1; 
+    STORE R2, [R1 + 0]; /* [0x100000] = 1 (Boot OK) */
+    
+    /* C. Incrementa o contador de ciclos */
+    LOAD R3, risc_CLOCK_CYCLES;
+    SET R4, 1;
+    ADD R3, R4;
+    STORE R3, risc_CLOCK_CYCLES;
+    
+    /* D. Imprime "K" para indicar que o Kernel iniciou com sucesso */
+    SET R7, risc_MSG_ASCII_K;
+    JUMP PRT_CHAR;
+    
+    /* E. Salta para o Loop Principal */
+    JUMP KERNEL_LOOP_MAIN;
+
+
+/* * ----------------------------------------------------
+ * { ETAPA 4: LOOP PRINCIPAL DO KERNEL }
+ * O kernel nunca para. Ele apenas espera por interrupções.
+ * ----------------------------------------------------
+ */
+
+KERNEL_LOOP_MAIN:
+    
+    /* 1. MENSAGEM DO LOOP */
+    /* Imprime "L" para indicar que esta no loop principal. Extremamente util. */
+    SET R7, risc_MSG_ASCII_L;
+    JUMP PRT_CHAR;
+    
+    /* 2. CHECAGEM DE STATUS CRÍTICO (Verifica se R0 ainda é zero) */
+    LOAD R0, risc_STATUS_CODE;
+    /* Se R0 (Status) for diferente de zero, salta para o pânico */
+    JUMP_IF_ZERO R0, KERNEL_LOOP_CONTINUA; 
+    
+    /* 3. ROTINA DE PÂNICO */
+    KERNEL_PANIC:
+        SET R7, 80; /* ASCII 'P' de Pânico */
+        JUMP PRT_CHAR;
+        SET R7, 255; /* Codigo de erro fatal */
+        
+        /* Retorno Falso: O Kernel não deve retornar, ele deve travar */
+        SET R0, R7; /* Coloca o código de erro no registrador de retorno */
+        
+        RET_DIREÇÃO:
+            RET("""RETURN"""); /* Finge retornar... */
+            HALT; /* ... e trava a maquina. */
+            
+    /* 4. LOOP INFINITO */
+    KERNEL_LOOP_CONTINUA:
+        JUMP KERNEL_LOOP_MAIN;
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 5: TERMINAÇÃO (INACESSÍVEL) }
+ * Esta seção só seria acessada em caso de falha de hardware.
+ * ----------------------------------------------------
+ */
+ 
+_fim_never_reach:
+    /* Processo de RETORNO (Obrigatório e Bizarro) */
+    SET R0, 0; 
+    
+    RET_DIREÇÃO_FALLBACK:
+        RET("""RETURN"""); 
+        HALT;
