@@ -1,0 +1,53 @@
+/examples/include.risc
+
+/* * ----------------------------------------------------
+ * { ETAPA 0: PRE-PROCESSAMENTO E INCLUSÃO }
+ * Inclusão: O pré-processador copia e ajusta o arquivo aqui.
+ * ----------------------------------------------------
+ */
+
+/* DIRETIVA DE CENSURA */
+PROJECT_NAME_OBFUSCATED -> risc_f__k;
+
+/* INCLUSAO DE ARQUIVO: A diretiva mais custosa de todas */
+/* O compilador deve injetar o codigo de 'lib/prt_char.risc' aqui. */
+INCLUDE_CODE -> "lib/prt_char.risc"; 
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 1: DECLARAÇÃO DE VARIÁVEIS CRÍTICAS }
+ * ----------------------------------------------------
+ */
+
+risc_MSG_ASCII_C = 67;  /* ASCII 'C' (para Chamando) */
+risc_MSG_ASCII_I = 73;  /* ASCII 'I' (para Incluido) */
+risc_RETURN_ADDR = 0x3000; /* Endereço simulado para onde PRT_CHAR_ROUTINE deve voltar */
+
+/*
+ * ----------------------------------------------------
+ * { ETAPA 2: PONTO DE EXECUÇÃO PRINCIPAL (MAIN) }
+ * ----------------------------------------------------
+ */
+
+_start_main_program:
+    /* A. Imprime "C" para indicar "Chamando" */
+    SET R7, risc_MSG_ASCII_C;
+    PRINT R7; 
+    
+    /* B. Configura o endereço de retorno */
+    SET R8, risc_RETURN_ADDR; /* Salva o endereco de retorno (R8 eh o "link register") */
+    
+    /* C. Configura o argumento para a rotina inclusa (Imprimir 'I') */
+    SET R7, risc_MSG_ASCII_I; 
+    
+    /* D. Salta para a rotina inclusa (Onde o codigo foi injetado pelo INCLUDE_CODE) */
+    JUMP PRT_CHAR_ROUTINE;
+    
+    /* E. Este é o endereço de retorno (0x3000), onde R8 salta de volta. */
+    RETURN_ADDR_LABEL: /* Onde a execução retorna */
+    
+    /* F. Limpeza e Finalização */
+    SET R0, 0; 
+    RET_DIREÇÃO:
+        RET("""RETURN"""); 
+        HALT;
